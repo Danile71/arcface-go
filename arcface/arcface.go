@@ -20,6 +20,8 @@ type ArcFace struct {
 
 	ortEnv            *onnxruntime.ORTEnv
 	ortSessionOptions *onnxruntime.ORTSessionOptions
+
+	modelPath string
 }
 
 // Load onnx model from infightface, based on "buffalo_l" (det_10g.onnx, w600k_r50.onnx).
@@ -46,7 +48,7 @@ func (arcFace *ArcFace) FaceDetect(src image.Image) ([][]float32, [][]float32, e
 	input1, detScale := preprocessImage(src, detModelInputSize)
 
 	if arcFace.detModel == nil {
-		if err := WithDetModel("./models/det_10g.onnx")(arcFace); err != nil {
+		if err := WithDetModel("det_10g.onnx")(arcFace); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -88,7 +90,7 @@ func (arcFace *ArcFace) FaceFeatures(src image.Image, lmk []float32) ([]float32,
 	input2 := preprocessFace(aimg, faceAlignImageSize)
 
 	if arcFace.arcfaceModel == nil {
-		if err = WithArcfaceModel("./models/w600k_r50.onnx")(arcFace); err != nil {
+		if err = WithArcfaceModel("w600k_r50.onnx")(arcFace); err != nil {
 			return nil, nil, err
 		}
 	}

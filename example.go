@@ -12,10 +12,15 @@ const (
 )
 
 func main() {
-	// by default "./models/det_10g.onnx" and "./models/w600k_r50.onnx"
 	arcFace, err := arcface.New(
+		arcface.WithModelPath("./models"),
+	// or
 	// arcface.WithDetModel("./models/det_10g.onnx"),
 	// arcface.WithArcfaceModel("./models/w600k_r50.onnx"),
+	// or
+	// arcface.WithModelPath("./models"),
+	// arcface.WithDetModel("det_10g.onnx"),
+	// arcface.WithArcfaceModel("w600k_r50.onnx"),
 	)
 	if err != nil {
 		log.Fatal("New() error: ", err)
