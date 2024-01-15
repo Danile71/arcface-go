@@ -8,9 +8,9 @@ package gocvx
 */
 import "C"
 import (
+	"errors"
 	"image"
 	"image/color"
-	"errors"
 )
 
 type ColorConversionCode int
@@ -27,7 +27,6 @@ const (
 	ColorBGRAToRGBA ColorConversionCode = 5
 )
 
-
 // EstimateAffinePartial2D computes an optimal limited affine transformation
 // with 4 degrees of freedom between two 2D point sets.
 //
@@ -38,7 +37,6 @@ const (
 func EstimateAffinePartial2DWithParams(from Point2fVector, to Point2fVector, inliers Mat, method int, ransacReprojThreshold float64, maxIters uint, confidence float64, refineIters uint) Mat {
 	return newMat(C.EstimateAffinePartial2DWithParams(from.p, to.p, inliers.p, C.int(method), C.double(ransacReprojThreshold), C.size_t(maxIters), C.double(confidence), C.size_t(refineIters)))
 }
-
 
 // WarpAffine applies an affine transformation to an image. For more parameters please check WarpAffineWithParams
 //
@@ -53,7 +51,6 @@ func WarpAffine(src Mat, dst *Mat, m Mat, sz image.Point) {
 	C.WarpAffine(src.p, dst.p, m.p, pSize)
 }
 
-
 // ImageToMatRGB converts image.Image to gocv.Mat,
 // which represents RGB image having 8bit for each component.
 // Type of Mat is gocv.MatTypeCV8UC3.
@@ -66,7 +63,7 @@ func ImageToMatRGB(img image.Image) (Mat, error) {
 	switch img.ColorModel() {
 	case color.RGBAModel:
 		m, res := img.(*image.RGBA)
-		if true != res {
+		if !res {
 			return NewMat(), errors.New("Image color format error")
 		}
 		data = m.Pix
@@ -99,11 +96,9 @@ func ImageToMatRGB(img image.Image) (Mat, error) {
 //
 // For further details, please see:
 // http://docs.opencv.org/master/d7/d1b/group__imgproc__misc.html#ga4e0972be5de079fed4e3a10e24ef5ef0
-//
 func CvtColor(src Mat, dst *Mat, code ColorConversionCode) {
 	C.CvtColor(src.p, dst.p, C.int(code))
 }
-
 
 // ToImage converts a Mat to a image.Image.
 func (m *Mat) ToImage() (image.Image, error) {

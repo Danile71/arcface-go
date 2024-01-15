@@ -3,7 +3,6 @@ package arcface
 
 import (
 	"errors"
-	"path/filepath"
 	"image"
 
 	"github.com/ivansuteja96/go-onnxruntime"
@@ -11,42 +10,49 @@ import (
 )
 
 const (
-	det_model_input_size = 224
-	face_align_image_size = 112
+	detModelInputSize  = 224
+	faceAlignImageSize = 112
 )
 
-var (
-	detModel *onnxruntime.ORTSession
+type ArcFace struct {
+	detModel     *onnxruntime.ORTSession
 	arcfaceModel *onnxruntime.ORTSession
-)
+
+	ortEnv            *onnxruntime.ORTEnv
+	ortSessionOptions *onnxruntime.ORTSessionOptions
+}
 
 // Load onnx model from infightface, based on "buffalo_l" (det_10g.onnx, w600k_r50.onnx).
 // onnxmodel_path is the path way to onnx models.
-func LoadOnnxModel(onnxmodel_path string) (err error) {
-	ortEnvDet := onnxruntime.NewORTEnv(onnxruntime.ORT_LOGGING_LEVEL_ERROR, "development")
-	ortDetSO := onnxruntime.NewORTSessionOptions()
-
-	detModel, err = onnxruntime.NewORTSession(ortEnvDet, filepath.Join(onnxmodel_path, "det_10g.onnx"), ortDetSO)
-	if err != nil {
-		return err
+func New(opts ...ArcFaceOption) (arcFace *ArcFace, err error) {
+	arcFace = &ArcFace{
+		ortEnv:            onnxruntime.NewORTEnv(onnxruntime.ORT_LOGGING_LEVEL_ERROR, "development"),
+		ortSessionOptions: onnxruntime.NewORTSessionOptions(),
 	}
 
-	arcfaceModel, err = onnxruntime.NewORTSession(ortEnvDet, filepath.Join(onnxmodel_path, "w600k_r50.onnx"), ortDetSO)
-	if err != nil {
-		return err
+	for _, opt := range opts {
+		if err = opt(arcFace); err != nil {
+			return
+		}
 	}
 
-	return nil
+	return
 }
 
 // Detect face in src image,
 // return face boxes and landmarks, ordered by predict scores.
-func FaceDetect(src image.Image) ([][]float32, [][]float32, error) {
-	shape1 := []int64{1, 3, det_model_input_size, det_model_input_size}
-	input1, det_scale := preprocessImage(src, det_model_input_size)
+func (arcFace *ArcFace) FaceDetect(src image.Image) ([][]float32, [][]float32, error) {
+	shape1 := []int64{1, 3, detModelInputSize, detModelInputSize}
+	input1, detScale := preprocessImage(src, detModelInputSize)
+
+	if arcFace.detModel == nil {
+		if err := WithDetModel("./models/det_10g.onnx")(arcFace); err != nil {
+			return nil, nil, err
+		}
+	}
 
 	// face detect model inference
-	res, err := detModel.Predict([]onnxruntime.TensorValue{
+	res, err := arcFace.detModel.Predict([]onnxruntime.TensorValue{
 		{
 			Value: input1,
 			Shape: shape1,
@@ -60,7 +66,7 @@ func FaceDetect(src image.Image) ([][]float32, [][]float32, error) {
 		return nil, nil, errors.New("Fail to get result")
 	}
 
-	dets, kpss := processResult(res, det_scale)
+	dets, kpss := processResult(res, detScale)
 
 	return dets, kpss, nil
 }
@@ -68,9 +74,9 @@ func FaceDetect(src image.Image) ([][]float32, [][]float32, error) {
 // Get face features by Arcface
 // Parameter src is original image, lmk is face landmark detected by FaceDetect(),
 // return features in a arrary, and norm_crop image
-func FaceFeatures(src image.Image, lmk []float32) ([]float32, image.Image, error) {
-	aimg, err := norm_crop(src, lmk)
-	if err!=nil {
+func (arcFace *ArcFace) FaceFeatures(src image.Image, lmk []float32) ([]float32, image.Image, error) {
+	aimg, err := normCrop(src, lmk)
+	if err != nil {
 		return nil, nil, err
 	}
 
@@ -78,12 +84,17 @@ func FaceFeatures(src image.Image, lmk []float32) ([]float32, image.Image, error
 	//_ = imaging.Save(aimg, "data/crop_norm.jpg")
 
 	// prepare input data
-	shape2 := []int64{1, 3, face_align_image_size, face_align_image_size}
-	input2 := preprocessFace(aimg, face_align_image_size)
+	shape2 := []int64{1, 3, faceAlignImageSize, faceAlignImageSize}
+	input2 := preprocessFace(aimg, faceAlignImageSize)
 
+	if arcFace.arcfaceModel == nil {
+		if err = WithArcfaceModel("./models/w600k_r50.onnx")(arcFace); err != nil {
+			return nil, nil, err
+		}
+	}
 
 	// face features modle inference
-	res2, err := arcfaceModel.Predict([]onnxruntime.TensorValue{
+	res2, err := arcFace.arcfaceModel.Predict([]onnxruntime.TensorValue{
 		{
 			Value: input2,
 			Shape: shape2,
