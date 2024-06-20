@@ -21,6 +21,7 @@ func WithDetModel(onnxmodelPath string) ArcFaceOption {
 		if arcFace.detModel, err = onnxruntime.NewORTSession(arcFace.ortEnv, filepath.Join(arcFace.modelPath, onnxmodelPath), arcFace.ortSessionOptions); err != nil {
 			return
 		}
+
 		return
 	}
 }
@@ -31,6 +32,25 @@ func WithArcfaceModel(onnxmodelPath string) ArcFaceOption {
 		if arcFace.arcfaceModel, err = onnxruntime.NewORTSession(arcFace.ortEnv, filepath.Join(arcFace.modelPath, onnxmodelPath), arcFace.ortSessionOptions); err != nil {
 			return
 		}
+		return
+	}
+}
+
+// WithCudaOptions use cuda
+func WithCudaOptions(deviceID, gPUMemorylimit int, cudnnConvAlgoSearch onnxruntime.CudnnConvAlgoSearch, arenaExtendStrategy, doCopyInDefaultStream, hasUserComputeStream bool) ArcFaceOption {
+	return func(arcFace *ArcFace) (err error) {
+		cudaOptions := onnxruntime.CudaOptions{
+			DeviceID:       deviceID,
+			GPUMemorylimit: gPUMemorylimit,
+
+			CudnnConvAlgoSearch: cudnnConvAlgoSearch,
+
+			ArenaExtendStrategy:   arenaExtendStrategy,
+			DoCopyInDefaultStream: doCopyInDefaultStream,
+			HasUserComputeStream:  hasUserComputeStream,
+		}
+
+		arcFace.ortSessionOptions.AppendExecutionProviderCUDA(cudaOptions)
 		return
 	}
 }
